@@ -8,10 +8,9 @@
                  [org.clojure/java.jdbc "0.4.2"]
                  [org.postgresql/postgresql "9.2-1004-jdbc4"]
                  [honeysql "0.6.3"]
-                 [clj-time "0.12.0"]
-                 [org.clojure/tools.cli "0.3.5"]]
+                 [clj-time "0.12.0"]]
   :main payments-csv-generator.core
-  :profiles {:uberjar {:aot :all}})
+  :aot [payments-csv-generator.core])
 
 
 

@@ -1,5 +1,6 @@
 (ns payments-csv-generator.vtb
   (:require [clj-time.format :as f]
+            [clojure.pprint]
             [clj-time.coerce :as c]))
 
 (defn generate-vtb-line [idx {creation-time :creation_time
@@ -8,8 +9,13 @@
                               payer-name :company_name
                               payer-kpp :org_bd_kpp
                               payer-inn :tax_number
-                              :as bill}]
-  (println "Generate vtb line for bill:" bill)
+                              firstname :pr_bd_firstname
+                              lastname :pr_bd_lastname
+                              :as bill}
+                         statement]
+  (println "[ВТБ] Генерация платежа")
+  (clojure.pprint/pprint bill)
+  (println)
   (let [date (f/unparse (f/formatter "dd.MM.yyyy") (c/from-sql-date creation-time))]
     [1 ;; Тип
      nil ;; Идентификатор
@@ -20,7 +26,10 @@
      "01" ;; Вид операции
      (bigdec (/ price 100)) ;; Сумма
      "810" ;; Валюта
-     (str "Счет номер №" uid) ;; Основание платежа
+     ;;"Оплата по номеру договора 2695717/1 за услуги по счету 2695717/3"
+     (if (get statement :include-uid? true)
+       (format (get statement :subject "Номер счета %s") uid)
+       (get statement :subject "Дефолтное назначение")) ;; Основание платежа
      "044525187" ;; БИК Банка получателя
      "40702810900190000478" ;; Счет получателя
      "ООО \"ХЭДХАНТЕР\"" ;; Наименование получателя
@@ -29,8 +38,8 @@
      "30101810700000000187" ;; Счет Банка получателя
      "БАНК ВТБ (ПАО)" ;; Наименование Банка получателя
      nil ;; Счет Плательщика
-     payer-name ;; Наименование Плательщика
-     payer-inn ;; ИНН Плательщика
+     (or payer-name (str firstname " " lastname)) ;; Наименование Плательщика
+     (or payer-inn "111123333331") ;; ИНН Плательщика
      nil ;; Счет Банка плательщика
      nil ;; БИК Банка плательщика
      nil ;; Наименование Банка плательщика

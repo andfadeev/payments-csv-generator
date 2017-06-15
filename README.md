@@ -1,37 +1,33 @@
-# payments-csv-generator
+# Payments CSV Generator
 
 Утилита для генерации тестовых выгрузок из Альфа-банка или ВТБ
 
+## Окружение
 
-## Cборка
-
-Для сборки нужен [Leiningen](http://leiningen.org/)
-
-Из корня проекта запустить:
-
-```
-#> lein uberjar
-```
+Для использования нужена утилита [lein](http://leiningen.org/).
 
 ## Использование
 
-Запускать из командной строки с нужными параметрами:
+Скопировать файл `config.edn.example` и добавить/изменить необходимые параметры:
 
 ```
-#> java -jar target/payments-csv-generator-0.1.0-SNAPSHOT-standalone.jar -Hts41.pyn.ru --database master 
+=> cp config.edn.example config.edn
+```
+Описание `edn` формата: [https://github.com/edn-format/edn](https://github.com/edn-format/edn)
+
+Запустить генерацию через `lein`:
+
+```
+=> lein run
 ```
 
-Параметры:
+## Результат
+Файлы лежат в папке `csv`.
 
-```
-    -b, --bank BANK_TYPE        alfa       alfa or vtb 
-    -H, --hostname DB_HOST      localhost  Database hostname
-    -P, --port DB_PORT          5432       Database port
-    -d, --database DB_NAME      hh         Database name
-    -u, --username DB_USER      hh         Database user
-    -p, --password DB_PASSWORD  123        Database password
-    -i, --ids IDs                          Bill ids (optional)
-    -h, --help                             Help info
-````
+# Todo
+- Добавить `spec` для конфига
+- Поддержать генерацию платежек для физ. лиц
+- Автоконвертация `sql.time` в `java.time.*`
+- Auto `snake_case` to `kebab-case` for sql result sets
 
-Если указать id счетов, то в выгрузку попадут только они, если не указывать - отберутся все подходящие счета.
+Pull requests are welcome!

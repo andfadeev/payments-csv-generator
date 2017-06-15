@@ -1,87 +1,91 @@
 (ns payments-csv-generator.core
-  (:gen-class)
   (:require [clj-time
              [core :as t]
              [format :as tf]]
+            [clojure.edn :as edn]
             [clojure.data.csv :as csv]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.tools.cli :refer [parse-opts]]
             [payments-csv-generator
              [db :as db]
              [headers :as h]
              [vtb :as vtb]
-             [alfa :as alfa]]))
+             [alfa :as alfa]])
+  (:gen-class))
 
-(defn- create-file [filename content separator]
+(defn- create-file [filename content separator encoding]
   (let [filename (str "csv/" filename "_" (tf/unparse (tf/formatter "dd_MM_yyyy") (t/now)) ".csv")]
-    (with-open [out-file (io/writer filename :encoding "windows-1251")]
+    (with-open [out-file (io/writer filename :encoding encoding)]
       (csv/write-csv out-file content :separator separator))))
 
-(defmulti generate-csv-file (fn [bank bills] bank))
+(defmulti filename (fn [bank] bank))
 
-(defmethod generate-csv-file "alfa"
-  [_ bills]
-  (println "Start generating ALFA file")
-  (create-file "alfa_payments"
-               (concat [h/alfa-headers-en h/alfa-headers-ru]
-                       (into [] (map-indexed alfa/generate-alfa-line bills)))
-               \tab))
+(defmethod filename :alfa
+  [bank]
+  "alfa_payments")
 
-(defmethod generate-csv-file "vtb"
-  [_ bills]
-  (println "Start generating VTB file")
-  (create-file "vtb_payments"
-               (concat
-                [h/vtb-headers]
-                (into [] (map-indexed vtb/generate-vtb-line bills))
-                [h/vtb-footer])
-               \;))
+(defmethod filename :vtb
+  [bank]
+  "vtb_payments")
 
-(def cli-opts
-  [["-b" "--bank BANK_TYPE" "alfa or vtb"
-    :id :bank
-    :default "alfa"
-    :parse-fn (fn [arg] (str/lower-case (str/trim arg)))]
-   ["-H" "--hostname DB_HOST" "Database hostname"
-    :id :db-host
-    :parse-fn (fn [arg] (str/lower-case (str/trim arg)))
-    :default "localhost"]
-   ["-P" "--port DB_PORT" "Database port"
-    :id :db-port
-    :parse-fn (fn [arg] (str/lower-case (str/trim arg)))
-    :default "5432"]
-   ["-d" "--database DB_NAME" "Database name"
-    :id :db-name
-    :parse-fn (fn [arg] (str/lower-case (str/trim arg)))
-    :default "hh"]
-   ["-u" "--username DB_USER" "Database user"
-    :id :db-user
-    :parse-fn (fn [arg] (str/lower-case (str/trim arg)))
-    :default "hh"]
-   ["-p" "--password DB_PASSWORD" "Database password"
-    :id :db-password
-    :parse-fn (fn [arg] (str/lower-case (str/trim arg)))
-    :default "123"]
-   ["-i" "--ids IDs" "Bill ids (optional)"
-    :id :ids
-    :parse-fn (fn [ids-str] (map #(bigint %) (clojure.string/split ids-str #",")))
-    ]
-   ["-h" "--help" "Help info"]])
+(defmulti headers (fn [bank] bank))
+
+(defmethod headers :alfa
+  [bank]
+  [h/alfa-headers-en h/alfa-headers-ru])
+
+(defmethod headers :vtb
+  [bank]
+  [h/vtb-headers])
+
+(defmulti footer (fn [bank] bank))
+
+(defmethod footer :alfa
+  [bank]
+  nil)
+
+(defmethod footer :vtb
+  [bank]
+  [h/vtb-footer])
+
+(defmulti separator (fn [bank] bank))
+
+(defmethod separator :alfa
+  [bank]
+  \tab)
+
+(defmethod separator :vtb
+  [bank]
+  \;)
+
+(defmulti generate-line (fn [bank idx bill statement] bank))
+
+(defmethod generate-line :alfa
+  [bank idx bill statement]
+  (alfa/generate-alfa-line idx bill statement))
+
+(defmethod generate-line :vtb
+  [bank idx bill statement]
+  (vtb/generate-vtb-line idx bill statement))
+
+(defn group-bills [bills]
+  [(reduce (fn [prev next]
+             (-> prev
+                 (update-in [:price] + (:price next))
+                 (update-in [:uid] (fn [u1 u2] (str u1 ", " u2)) (:uid next))
+                 (update-in [:bill_id] (fn [u1 u2] (str u1 ", " u2)) (:bill_id next)))) bills)])
 
 (defn -main [& args]
-  (let [cli (parse-opts args cli-opts)]
-    (if (java.lang.Boolean/valueOf (get-in cli [:options :help]))
-      ;; help
-      (println (:summary cli))
-      ;; else
-      (let [opts (:options cli)
-            bank (:bank opts)
-            db-spec (db/db-spec opts)
-            bills (if (seq (:ids opts))
-                    (db/get-bills-by-ids db-spec (:ids opts))
-                    (db/get-bills db-spec))]
-        (println "Found" (count bills) "bills")
-        (generate-csv-file bank bills)
-        (println "Finished generating file")))))
-
+  (let [config (edn/read-string (slurp "resources/config.edn"))
+        db (db/db-spec (:db config))
+        bank (:bank config)
+        statements (:statements config)
+        rows (mapcat (fn [statement]
+                    (let [bill-ids (:bills statement)
+                          bills (db/get-bills-by-ids db bill-ids)
+                          bills (if (get statement :multiple? false) (group-bills bills) bills)]
+                      (map-indexed (fn [idx bill] (generate-line bank idx bill statement)) bills))) statements)]
+    (create-file (filename bank)
+                 (concat (headers bank) rows (footer bank))
+                 (separator bank)
+                 (:encoding config))))

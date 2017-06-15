@@ -1,16 +1,22 @@
 (ns payments-csv-generator.alfa
   (:require [payments-csv-generator.headers :as h]
+            [clojure.pprint]
             [clj-time.format :as f]
             [clj-time.coerce :as c]))
 
 (defn generate-alfa-line [idx {creation-time :creation_time
                                price :price
                                uid :uid
-                               payer-name :company_name
+                               company-name :company_name
                                payer-kpp :org_bd_kpp
                                payer-inn :tax_number
-                               :as bill}]
-  (println "Generate alfa line for bill:" bill)
+                               firstname :pr_bd_firstname
+                               lastname :pr_bd_lastname
+                               :as bill}
+                          statement]
+  (println "[АЛЬФА] Генерация платежа для:")
+  (clojure.pprint/pprint bill)
+  (println)
   (let [date (f/unparse (f/formatter "dd.MM.yyyy") (c/from-sql-date creation-time))
         price (bigdec (/ price 100))]
     ["RUR" ;; Type - Код валюты счета
@@ -20,8 +26,8 @@
      price ;; Sum_rur - Сумма док-та, в руб. эквивал
      1 ;; Priority - Очередность платежа
      "Электронно" ;; Post - Вид платежа
-     payer-name ;; plat_name - Наименование плательщика
-     payer-inn ;; plat_inn - ИНН плательщика
+     (or company-name (str firstname " " lastname)) ;; plat_name - Наименование плательщика
+     (or payer-inn "111123333331") ;; plat_inn - ИНН плательщика
      payer-kpp ;; plat_kpp - КПП плательщика
      nil ;; plat_acc - Расчетный счет плательщика
      nil ;; plat_bank - Наименование Банка плательщика
@@ -34,7 +40,9 @@
      "ОАО \"АЛЬФА-БАНК\" Г МОСКВА" ;; pol_bank - Банк получателя
      "44525593" ;; pol_bic - БИК банка получателя
      "30101810200000000000" ;; pol_ks - Корсчет банка получателя
-     (str "Счет номер №" uid) ;; text70 - Назначение платежа
+     (if (get statement :include-uid? true)
+       (format (get statement :subject "Номер счета %s") uid)
+       (get statement :subject "Дефолтное назначение")) ;; text70 - Назначение платежа (str "Счет номер №" uid)
      nil ;; TaxStatus - Статус составителя расчетного документа
      nil ;; TaxKbk - Показатель кода бюджетной классификации
      nil ;; Okato - ОКАТО
