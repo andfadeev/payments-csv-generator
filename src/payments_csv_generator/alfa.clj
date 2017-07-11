@@ -29,9 +29,9 @@
      (or (:company-name statement) company-name (str firstname " " lastname)) ;; plat_name - Наименование плательщика
      (or (:inn statement) payer-inn "111123333331") ;; plat_inn - ИНН плательщика
      payer-kpp ;; plat_kpp - КПП плательщика
-     nil ;; plat_acc - Расчетный счет плательщика
-     nil ;; plat_bank - Наименование Банка плательщика
-     nil ;; plat_bic - БИК Банка плательщика
+     (or (:payer-bank-account statement) "Счет") ;; plat_acc - Расчетный счет плательщика
+     (or (:payer-bank-name statement) "Название") ;; plat_bank - Наименование Банка плательщика
+     (or (:payer-bank-bik statement) "БИК") ;; plat_bic - БИК Банка плательщика
      nil ;; plat_ks - Корсчет банка плательщика
      nil ;; pol_name - Получатель
      nil ;; Pol_inn - ИНН получателя

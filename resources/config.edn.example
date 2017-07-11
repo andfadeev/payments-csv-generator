@@ -17,6 +17,9 @@
                :company-name                                ; кастомное название компании
                :subject "Оплата по договору 1231234/11"     ; кастомный заголовок платежки, дефолт "Оплата по договору billUid"
                :include-uid? false                          ; включать ли billUid в заголовок платежки, дефолт true
+               :payer-bank-account ""
+               :payer-bank-name ""
+               :payer-bank-bik ""
                }
               ]
  }
