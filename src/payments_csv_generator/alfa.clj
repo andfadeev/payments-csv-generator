@@ -26,8 +26,8 @@
      price ;; Sum_rur - Сумма док-та, в руб. эквивал
      1 ;; Priority - Очередность платежа
      "Электронно" ;; Post - Вид платежа
-     (or company-name (str firstname " " lastname)) ;; plat_name - Наименование плательщика
-     (or payer-inn "111123333331") ;; plat_inn - ИНН плательщика
+     (or (:company-name statement) company-name (str firstname " " lastname)) ;; plat_name - Наименование плательщика
+     (or (:inn statement) payer-inn "111123333331") ;; plat_inn - ИНН плательщика
      payer-kpp ;; plat_kpp - КПП плательщика
      nil ;; plat_acc - Расчетный счет плательщика
      nil ;; plat_bank - Наименование Банка плательщика
